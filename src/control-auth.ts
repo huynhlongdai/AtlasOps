@@ -62,6 +62,10 @@ export class UserStore {
     if (!user || !(await verifyPassword(password, user.passwordHash))) return undefined;
     return publicUser(user);
   }
+  async getActiveUser(id: string): Promise<PublicControlUser | undefined> {
+    const user = (await this.load()).users.find((u) => u.id === id && !u.disabled);
+    return user ? publicUser(user) : undefined;
+  }
   async listUsers(): Promise<PublicControlUser[]> { return (await this.load()).users.map(publicUser); }
   async listTeams(): Promise<string[]> { return [...(await this.load()).teams]; }
   async createTeam(name: string): Promise<string> {
