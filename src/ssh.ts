@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Client, type ConnectConfig, type SFTPWrapper } from "ssh2";
 import type { CommandResult, ServerDefinition } from "./types.js";
 import { AtlasOpsError } from "./config.js";
@@ -5,6 +6,8 @@ import { SecretResolver } from "./secrets.js";
 import { shellQuote } from "./security.js";
 
 const MAX_OUTPUT_BYTES = 512 * 1024;
+const MAX_WRITE_BYTES = 1024 * 1024;
+
 function collectChunk(current: Buffer[], currentBytes: number, chunk: Buffer | string): { bytes: number; truncated: boolean } {
   const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
   const remaining = Math.max(0, MAX_OUTPUT_BYTES - currentBytes);
@@ -70,6 +73,28 @@ export class SshExecutor {
       if (attrs.size > maxBytes) throw new AtlasOpsError("FILE_TOO_LARGE", `File is ${attrs.size} bytes; maxBytes is ${maxBytes}`);
       const content = await new Promise<Buffer>((resolve, reject) => sftp.readFile(target, (error, data) => error ? reject(error) : resolve(data)));
       return content.toString("utf8");
+    } finally { client.end(); }
+  }
+
+  async writeTextFileWithBackup(server: ServerDefinition, target: string, content: string): Promise<{ path: string; backupPath: string; bytes: number }> {
+    const payload = Buffer.from(content, "utf8");
+    if (payload.length > MAX_WRITE_BYTES) throw new AtlasOpsError("FILE_TOO_LARGE", `Write payload exceeds ${MAX_WRITE_BYTES} bytes`);
+    const client = await this.connect(server);
+    const tempPath = `${target}.atlasops-tmp-${randomUUID()}`;
+    const backupPath = `${target}.atlasops-backup-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    try {
+      const sftp = await new Promise<SFTPWrapper>((resolve, reject) => client.sftp((error, wrapper) => error ? reject(error) : resolve(wrapper)));
+      const attrs = await new Promise<{ size: number; mode: number }>((resolve, reject) => sftp.stat(target, (error, stat) => error ? reject(error) : resolve(stat)));
+      if (attrs.size > MAX_WRITE_BYTES) throw new AtlasOpsError("FILE_TOO_LARGE", `Existing file exceeds ${MAX_WRITE_BYTES} bytes; refusing automatic backup`);
+      const current = await new Promise<Buffer>((resolve, reject) => sftp.readFile(target, (error, data) => error ? reject(error) : resolve(data)));
+      await new Promise<void>((resolve, reject) => sftp.writeFile(backupPath, current, { mode: attrs.mode & 0o777 }, (error) => error ? reject(error) : resolve()));
+      await new Promise<void>((resolve, reject) => sftp.writeFile(tempPath, payload, { mode: attrs.mode & 0o777 }, (error) => error ? reject(error) : resolve()));
+      const replace = await this.execFixed(server, `mv -- ${shellQuote(tempPath)} ${shellQuote(target)}`);
+      if (replace.exitCode !== 0) throw new AtlasOpsError("FILE_REPLACE_FAILED", replace.stderr.trim() || "Could not atomically replace target file");
+      return { path: target, backupPath, bytes: payload.length };
+    } catch (error) {
+      try { const sftp = await new Promise<SFTPWrapper>((resolve, reject) => client.sftp((err, wrapper) => err ? reject(err) : resolve(wrapper))); await new Promise<void>((resolve) => sftp.unlink(tempPath, () => resolve())); } catch {}
+      throw error;
     } finally { client.end(); }
   }
 }
