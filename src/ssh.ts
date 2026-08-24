@@ -26,7 +26,7 @@ export class SshExecutor {
         host: server.host, port: server.port, username: server.username, privateKey,
         ...(passphrase ? { passphrase } : {}), readyTimeout: server.connectTimeoutMs,
         keepaliveInterval: 10000, keepaliveCountMax: 3, hostHash: "sha256",
-        hostVerifier: (hash) => hash.toLowerCase() === server.hostKeySha256
+        hostVerifier: (hash: string) => hash.toLowerCase() === server.hostKeySha256
       };
       client.connect(config);
     });
