@@ -11,12 +11,12 @@ import { DeploymentStore } from "./deployment.js";
 import { registerDeploymentTools } from "./deployment-tools.js";
 import { AgentSessionStore } from "./agent-session.js";
 import { AgentToolRegistry } from "./agent-tools.js";
-import { AgentRuntime, type AgentRunRequest, type AgentRunResult } from "./agent-runtime.js";
+import { AgentRuntime, type AgentEventSink, type AgentRunRequest, type AgentRunResult } from "./agent-runtime.js";
 import { ProviderRegistry, type ProviderId } from "./providers/index.js";
 
 export interface AtlasApp {
   createMcpServer(): McpServer;
-  runAgent(request: AgentRunRequest): Promise<AgentRunResult>;
+  runAgent(request: AgentRunRequest, onEvent?: AgentEventSink): Promise<AgentRunResult>;
   configuredProviders(): ProviderId[];
 }
 
@@ -38,7 +38,7 @@ export async function createAtlasApp(): Promise<AtlasApp> {
       registerDeploymentTools(server, runtime, ssh, deployments);
       return server;
     },
-    runAgent(request) { return agent.run(request); },
+    runAgent(request, onEvent) { return agent.run(request, onEvent); },
     configuredProviders() { return agent.configuredProviders(); }
   };
 }
