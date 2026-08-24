@@ -78,7 +78,14 @@ export class UserStore {
     });
   }
   async setDisabled(id: string, disabled: boolean): Promise<PublicControlUser> {
-    return this.serialize(async () => { const db = await this.load(); const user = db.users.find((u) => u.id === id); if (!user) throw new AtlasOpsError("USER_NOT_FOUND", "Unknown user"); user.disabled = disabled; await this.save(db); return publicUser(user); });
+    return this.serialize(async () => {
+      const db = await this.load(); const user = db.users.find((u) => u.id === id); if (!user) throw new AtlasOpsError("USER_NOT_FOUND", "Unknown user");
+      if (disabled && !user.disabled && user.role === "admin") {
+        const activeAdmins = db.users.filter((u) => u.role === "admin" && !u.disabled).length;
+        if (activeAdmins <= 1) throw new AtlasOpsError("LAST_ADMIN", "Refusing to disable the final active admin");
+      }
+      user.disabled = disabled; await this.save(db); return publicUser(user);
+    });
   }
 }
 
