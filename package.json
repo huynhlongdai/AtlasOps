@@ -1,7 +1,7 @@
 {
   "name": "atlasops",
-  "version": "0.4.0-alpha.1",
-  "description": "Provider-neutral AI infrastructure operations gateway over MCP",
+  "version": "1.0.0-rc.1",
+  "description": "Provider-neutral AI infrastructure operations gateway and Control Center",
   "type": "module",
   "private": false,
   "license": "MIT",
