@@ -5,6 +5,7 @@ import { parse } from "yaml";
 import { z } from "zod/v4";
 import type { ServerDefinition } from "./types.js";
 
+const decisionSchema = z.enum(["allow", "approval_required", "deny"]);
 const rawServerSchema = z.object({
   displayName: z.string().min(1).max(120),
   host: z.string().min(1).max(253),
@@ -16,35 +17,31 @@ const rawServerSchema = z.object({
   hostKeySha256: z.string().regex(/^[a-f0-9]{64}$/),
   tags: z.array(z.string().min(1).max(64)).default([]),
   allowedReadPaths: z.array(z.string().min(1)).min(1),
+  allowedWritePaths: z.array(z.string().min(1)).default([]),
+  writePolicy: z.record(z.string().min(1).max(64), decisionSchema).default({}),
   connectTimeoutMs: z.number().int().min(1000).max(120000).default(15000),
   commandTimeoutMs: z.number().int().min(1000).max(120000).default(20000)
 });
 
-const configSchema = z.object({
-  servers: z.record(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), rawServerSchema)
-});
+const configSchema = z.object({ servers: z.record(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), rawServerSchema) });
 
 function validateHost(host: string): void {
   if (host.includes("/") || host.includes("\\") || /\s/.test(host)) throw new Error(`Invalid SSH host: ${host}`);
   if (isIP(host) !== 0) return;
-  if (!/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(host)) {
-    throw new Error(`Invalid SSH hostname: ${host}`);
-  }
+  if (!/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(host)) throw new Error(`Invalid SSH hostname: ${host}`);
 }
 
-function normalizeAllowedRoot(value: string): string {
-  if (!path.posix.isAbsolute(value)) throw new Error(`allowedReadPaths must be absolute POSIX paths: ${value}`);
+function normalizeRoot(value: string, field: string): string {
+  if (!path.posix.isAbsolute(value)) throw new Error(`${field} must contain absolute POSIX paths: ${value}`);
   const normalized = path.posix.normalize(value);
-  if (normalized === "/") throw new Error("Refusing '/' as an allowed read root");
+  if (normalized === "/") throw new Error(`Refusing '/' as an allowed ${field === "allowedWritePaths" ? "write" : "read"} root`);
   return normalized.replace(/\/+$/, "");
 }
 
 export class ServerInventory {
   private constructor(private readonly byId: Map<string, ServerDefinition>) {}
-
   static async load(filePath: string): Promise<ServerInventory> {
-    const source = await readFile(filePath, "utf8");
-    const parsed = configSchema.parse(parse(source));
+    const parsed = configSchema.parse(parse(await readFile(filePath, "utf8")));
     const byId = new Map<string, ServerDefinition>();
     for (const [id, raw] of Object.entries(parsed.servers)) {
       validateHost(raw.host);
@@ -53,13 +50,14 @@ export class ServerInventory {
         environment: raw.environment, credentialRef: raw.credentialRef,
         ...(raw.passphraseRef ? { passphraseRef: raw.passphraseRef } : {}),
         hostKeySha256: raw.hostKeySha256.toLowerCase(), tags: [...raw.tags],
-        allowedReadPaths: raw.allowedReadPaths.map(normalizeAllowedRoot),
+        allowedReadPaths: raw.allowedReadPaths.map((v) => normalizeRoot(v, "allowedReadPaths")),
+        allowedWritePaths: raw.allowedWritePaths.map((v) => normalizeRoot(v, "allowedWritePaths")),
+        writePolicy: { ...raw.writePolicy },
         connectTimeoutMs: raw.connectTimeoutMs, commandTimeoutMs: raw.commandTimeoutMs
       });
     }
     return new ServerInventory(byId);
   }
-
   list(): ServerDefinition[] { return [...this.byId.values()]; }
   require(id: string): ServerDefinition {
     const server = this.byId.get(id);
