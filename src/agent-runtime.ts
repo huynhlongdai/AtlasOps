@@ -1,5 +1,6 @@
 import { AgentSessionStore } from "./agent-session.js";
 import { AgentToolRegistry } from "./agent-tools.js";
+import { PricingCatalog } from "./pricing.js";
 import { ProviderRegistry, type ProviderId, type ProviderToolResult, type ProviderUsage } from "./providers/index.js";
 
 export interface AgentRunRequest {
@@ -38,7 +39,12 @@ export interface AgentRunResult {
 export type AgentEventSink = (event: AgentEvent) => void | Promise<void>;
 
 export class AgentRuntime {
-  constructor(private readonly providers: ProviderRegistry, private readonly tools: AgentToolRegistry, private readonly sessions: AgentSessionStore) {}
+  constructor(
+    private readonly providers: ProviderRegistry,
+    private readonly tools: AgentToolRegistry,
+    private readonly sessions: AgentSessionStore,
+    private readonly pricing: PricingCatalog = PricingCatalog.fromEnvironment()
+  ) {}
 
   configuredProviders(): ProviderId[] { return this.providers.list(); }
 
@@ -66,9 +72,10 @@ export class AgentRuntime {
           ...(toolResults ? { toolResults } : {})
         });
         state = response.state;
-        if (response.usage) usage.push(response.usage);
-        await onEvent?.({ type: "provider.turn.completed", turn, ...(response.requestId ? { requestId: response.requestId } : {}), ...(response.text ? { text: response.text } : {}), ...(response.usage ? { usage: response.usage } : {}) });
-        const traceItem: AgentTraceItem = { turn, toolCalls: [], ...(response.requestId ? { providerRequestId: response.requestId } : {}), ...(response.text ? { text: response.text } : {}), ...(response.usage ? { usage: response.usage } : {}) };
+        const enrichedUsage = response.usage ? this.pricing.enrich(request.provider, request.model, response.usage) : undefined;
+        if (enrichedUsage) usage.push(enrichedUsage);
+        await onEvent?.({ type: "provider.turn.completed", turn, ...(response.requestId ? { requestId: response.requestId } : {}), ...(response.text ? { text: response.text } : {}), ...(enrichedUsage ? { usage: enrichedUsage } : {}) });
+        const traceItem: AgentTraceItem = { turn, toolCalls: [], ...(response.requestId ? { providerRequestId: response.requestId } : {}), ...(response.text ? { text: response.text } : {}), ...(enrichedUsage ? { usage: enrichedUsage } : {}) };
         if (response.text) finalText = response.text;
 
         if (response.toolCalls.length === 0) {
