@@ -15,7 +15,9 @@
     "start:stdio": "node dist/src/stdio.js",
     "start:http": "node dist/src/http.js",
     "test": "tsx --test tests/*.test.ts",
-    "check": "npm run build && npm test"
+    "check": "npm run build && npm test",
+    "acceptance": "node scripts/acceptance.mjs",
+    "acceptance:check": "node --check scripts/acceptance.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/express": "^2.0.0",
