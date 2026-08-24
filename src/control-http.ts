@@ -10,6 +10,11 @@ function cookieValue(req: Request, name: string): string | undefined {
   for (const part of source.split(";")) { const [key, ...rest] = part.trim().split("="); if (key === name) return decodeURIComponent(rest.join("=")); }
   return undefined;
 }
+function routeParam(req: Request, name: string): string {
+  const value = req.params[name];
+  if (typeof value !== "string" || !value) throw new Error(`Missing route parameter: ${name}`);
+  return value;
+}
 function currentSession(res: Response): WebSession | undefined { return (res.locals as ControlLocals).webSession; }
 function errorResponse(res: Response, error: unknown): void {
   if (error instanceof z.ZodError) { res.status(400).json({ error: "invalid_request", details: error.issues }); return; }
@@ -68,18 +73,22 @@ export async function registerControlRoutes(app: Application, atlas: AtlasApp, o
     } catch (error) { errorResponse(res, error); }
   });
   app.get("/api/servers", requireRole("viewer"), (_req, res) => res.json({ servers: atlas.control.listServers() }));
-  app.get("/api/servers/:id/health", requireRole("viewer"), async (req, res) => { try { res.json(await atlas.control.serverHealth(req.params.id!)); } catch (error) { errorResponse(res, error); } });
+  app.get("/api/servers/:id/health", requireRole("viewer"), async (req, res) => { try { res.json(await atlas.control.serverHealth(routeParam(req, "id"))); } catch (error) { errorResponse(res, error); } });
   app.get("/api/doctor", requireRole("viewer"), async (_req, res) => { try { res.json({ checks: await atlas.control.doctor() }); } catch (error) { errorResponse(res, error); } });
 
   app.get("/api/approvals", requireRole("operator"), async (req, res) => { try { const status = typeof req.query.status === "string" ? req.query.status as any : undefined; res.json({ approvals: await atlas.control.listApprovals(status) }); } catch (error) { errorResponse(res, error); } });
-  app.post("/api/approvals/:id/approve", requireRole("operator"), requireCsrf, async (req, res) => { try { const session = currentSession(res)!; res.json(await atlas.control.approve(req.params.id!, session.user.username)); } catch (error) { errorResponse(res, error); } });
-  app.post("/api/approvals/:id/reject", requireRole("operator"), requireCsrf, async (req, res) => { try { const session = currentSession(res)!; res.json(await atlas.control.reject(req.params.id!, session.user.username)); } catch (error) { errorResponse(res, error); } });
+  app.post("/api/approvals/:id/approve", requireRole("operator"), requireCsrf, async (req, res) => { try { const session = currentSession(res)!; res.json(await atlas.control.approve(routeParam(req, "id"), session.user.username)); } catch (error) { errorResponse(res, error); } });
+  app.post("/api/approvals/:id/reject", requireRole("operator"), requireCsrf, async (req, res) => { try { const session = currentSession(res)!; res.json(await atlas.control.reject(routeParam(req, "id"), session.user.username)); } catch (error) { errorResponse(res, error); } });
 
   app.get("/api/audit", requireRole("viewer"), async (req, res) => { try { const limit = Math.min(Number(req.query.limit ?? 200) || 200, 2000); res.json({ events: await atlas.control.listAudit(limit) }); } catch (error) { errorResponse(res, error); } });
   app.get("/api/deployments", requireRole("viewer"), async (req, res) => { try { res.json({ deployments: await atlas.control.listDeployments(typeof req.query.serverId === "string" ? req.query.serverId : undefined) }); } catch (error) { errorResponse(res, error); } });
   app.get("/api/providers", requireRole("viewer"), async (_req, res) => { res.json({ providers: atlas.configuredProviders(), settings: await atlas.settings.get() }); });
   app.patch("/api/settings", requireRole("admin"), requireCsrf, async (req, res) => {
-    try { const body = z.object({ defaultProvider: z.enum(["openai", "anthropic", "gemini"]).optional(), defaultModel: z.string().min(1).max(200).optional() }).parse(req.body); res.json(await atlas.settings.update(body)); } catch (error) { errorResponse(res, error); }
+    try {
+      const body = z.object({ defaultProvider: z.enum(["openai", "anthropic", "gemini"]).optional(), defaultModel: z.string().min(1).max(200).optional() }).parse(req.body);
+      const patch = { ...(body.defaultProvider !== undefined ? { defaultProvider: body.defaultProvider } : {}), ...(body.defaultModel !== undefined ? { defaultModel: body.defaultModel } : {}) };
+      res.json(await atlas.settings.update(patch));
+    } catch (error) { errorResponse(res, error); }
   });
 
   app.post("/api/agent/run", requireRole("viewer"), requireCsrf, async (req, res) => {
@@ -94,9 +103,9 @@ export async function registerControlRoutes(app: Application, atlas: AtlasApp, o
   app.get("/api/users", requireRole("admin"), async (_req, res) => res.json({ users: await users.listUsers(), teams: await users.listTeams() }));
   app.post("/api/teams", requireRole("admin"), requireCsrf, async (req, res) => { try { const { name } = z.object({ name: z.string().min(1).max(64) }).parse(req.body); res.json({ name: await users.createTeam(name) }); } catch (error) { errorResponse(res, error); } });
   app.post("/api/users", requireRole("admin"), requireCsrf, async (req, res) => { try { const body = z.object({ username: z.string(), password: z.string(), role: z.enum(["admin", "operator", "viewer"]), team: z.string().default("default") }).parse(req.body); res.json(await users.createUser(body.username, body.password, body.role, body.team)); } catch (error) { errorResponse(res, error); } });
-  app.patch("/api/users/:id", requireRole("admin"), requireCsrf, async (req, res) => { try { const { disabled } = z.object({ disabled: z.boolean() }).parse(req.body); res.json(await users.setDisabled(req.params.id!, disabled)); } catch (error) { errorResponse(res, error); } });
+  app.patch("/api/users/:id", requireRole("admin"), requireCsrf, async (req, res) => { try { const { disabled } = z.object({ disabled: z.boolean() }).parse(req.body); res.json(await users.setDisabled(routeParam(req, "id"), disabled)); } catch (error) { errorResponse(res, error); } });
 
   app.get("/api/credentials", requireRole("admin"), async (_req, res) => { try { res.json({ credentials: await atlas.control.listCredentials() }); } catch (error) { errorResponse(res, error); } });
-  app.put("/api/credentials/:name", requireRole("admin"), requireCsrf, async (req, res) => { try { const { value } = z.object({ value: z.string().min(1).max(100_000) }).parse(req.body); await atlas.control.setCredential(req.params.name!, value); res.json({ ok: true, name: req.params.name }); } catch (error) { errorResponse(res, error); } });
-  app.delete("/api/credentials/:name", requireRole("admin"), requireCsrf, async (req, res) => { try { await atlas.control.deleteCredential(req.params.name!); res.json({ ok: true }); } catch (error) { errorResponse(res, error); } });
+  app.put("/api/credentials/:name", requireRole("admin"), requireCsrf, async (req, res) => { try { const { value } = z.object({ value: z.string().min(1).max(100_000) }).parse(req.body); const name = routeParam(req, "name"); await atlas.control.setCredential(name, value); res.json({ ok: true, name }); } catch (error) { errorResponse(res, error); } });
+  app.delete("/api/credentials/:name", requireRole("admin"), requireCsrf, async (req, res) => { try { await atlas.control.deleteCredential(routeParam(req, "name")); res.json({ ok: true }); } catch (error) { errorResponse(res, error); } });
 }
