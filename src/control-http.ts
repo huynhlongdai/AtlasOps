@@ -22,13 +22,26 @@ export async function registerControlRoutes(app: Application, atlas: AtlasApp, o
   const sessions = new WebSessionManager();
   const cookieName = "atlasops_session";
 
-  const requireSession = (req: Request, res: Response, next: NextFunction): void => {
-    const session = sessions.get(cookieValue(req, cookieName));
-    if (!session) { res.status(401).json({ error: "authentication_required" }); return; }
-    (res.locals as ControlLocals).webSession = session; next();
+  const loadActiveSession = async (req: Request, res: Response): Promise<WebSession | undefined> => {
+    const token = cookieValue(req, cookieName); const session = sessions.get(token);
+    if (!session) return undefined;
+    const activeUser = await users.getActiveUser(session.user.id);
+    if (!activeUser) { sessions.delete(token); return undefined; }
+    session.user = activeUser;
+    (res.locals as ControlLocals).webSession = session;
+    return session;
   };
-  const requireRole = (role: UserRole) => (req: Request, res: Response, next: NextFunction): void => {
-    requireSession(req, res, () => { const session = currentSession(res); if (!session || !roleAllows(session.user.role, role)) { res.status(403).json({ error: "forbidden" }); return; } next(); });
+  const requireSession = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try { if (!(await loadActiveSession(req, res))) { res.status(401).json({ error: "authentication_required" }); return; } next(); }
+    catch (error) { next(error); }
+  };
+  const requireRole = (role: UserRole) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const session = await loadActiveSession(req, res);
+      if (!session) { res.status(401).json({ error: "authentication_required" }); return; }
+      if (!roleAllows(session.user.role, role)) { res.status(403).json({ error: "forbidden" }); return; }
+      next();
+    } catch (error) { next(error); }
   };
   const requireCsrf = (req: Request, res: Response, next: NextFunction): void => {
     const session = currentSession(res); const received = req.header("x-atlasops-csrf") ?? "";
