@@ -1,4 +1,4 @@
-import type { Express, NextFunction, Request, Response } from "express";
+import type { Application, NextFunction, Request, Response } from "express";
 import { z } from "zod/v4";
 import type { AtlasApp } from "./app.js";
 import { UserStore, WebSessionManager, roleAllows, type UserRole, type WebSession } from "./control-auth.js";
@@ -16,7 +16,7 @@ function errorResponse(res: Response, error: unknown): void {
   res.status(400).json({ error: "control_error", message: error instanceof Error ? error.message : "Unknown Control Center error" });
 }
 
-export async function registerControlRoutes(app: Express, atlas: AtlasApp, options: { secureCookie: boolean }): Promise<void> {
+export async function registerControlRoutes(app: Application, atlas: AtlasApp, options: { secureCookie: boolean }): Promise<void> {
   const users = new UserStore(process.env.ATLASOPS_USERS_FILE ?? "./data/users.json");
   await users.bootstrapFromEnvironment();
   const sessions = new WebSessionManager();
