@@ -1,4 +1,5 @@
 export type EnvironmentName = "development" | "staging" | "production";
+export type WriteDecision = "allow" | "approval_required" | "deny";
 
 export interface ServerDefinition {
   id: string;
@@ -12,6 +13,8 @@ export interface ServerDefinition {
   hostKeySha256: string;
   tags: string[];
   allowedReadPaths: string[];
+  allowedWritePaths: string[];
+  writePolicy: Record<string, WriteDecision>;
   connectTimeoutMs: number;
   commandTimeoutMs: number;
 }
@@ -34,8 +37,9 @@ export interface AuditEvent {
   success: boolean;
   durationMs: number;
   errorCode?: string;
+  approvalId?: string;
 }
 
 export interface ToolSuccess<T> { ok: true; data: T; }
-export interface ToolFailure { ok: false; error: { code: string; message: string; }; }
+export interface ToolFailure { ok: false; error: { code: string; message: string; details?: Record<string, unknown>; }; }
 export type ToolResult<T> = ToolSuccess<T> | ToolFailure;
