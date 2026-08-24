@@ -11,10 +11,10 @@ function validName(name: string): string {
   return name;
 }
 function masterKeyFromEnvironment(): Buffer {
-  const raw = process.env.ATLASOPS_MASTER_KEY;
+  const raw = process.env.ATLASOPS_MASTER_KEY?.trim();
   if (!raw) throw new AtlasOpsError("MASTER_KEY_MISSING", "ATLASOPS_MASTER_KEY is required for vault: secrets");
-  const key = Buffer.from(raw, "base64");
-  if (key.length !== 32) throw new AtlasOpsError("MASTER_KEY_INVALID", "ATLASOPS_MASTER_KEY must be a base64-encoded 32-byte key");
+  const key = /^[a-fA-F0-9]{64}$/.test(raw) ? Buffer.from(raw, "hex") : Buffer.from(raw, "base64");
+  if (key.length !== 32) throw new AtlasOpsError("MASTER_KEY_INVALID", "ATLASOPS_MASTER_KEY must encode exactly 32 bytes as base64 or 64 hexadecimal characters");
   return key;
 }
 
