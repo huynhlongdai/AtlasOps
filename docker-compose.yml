@@ -7,11 +7,20 @@ services:
       ATLASOPS_AUDIT_FILE: /app/data/audit.jsonl
       ATLASOPS_APPROVALS_FILE: /app/data/approvals.json
       ATLASOPS_DEPLOYMENTS_FILE: /app/data/deployments.json
+      ATLASOPS_AGENT_SESSIONS_FILE: /app/data/agent-sessions.json
       ATLASOPS_HOST: 0.0.0.0
       ATLASOPS_PORT: 8787
       ATLASOPS_ALLOWED_HOSTS: ${ATLASOPS_ALLOWED_HOSTS}
       ATLASOPS_ALLOWED_ORIGINS: ${ATLASOPS_ALLOWED_ORIGINS:-}
       ATLASOPS_BEARER_TOKEN: ${ATLASOPS_BEARER_TOKEN}
+      ATLASOPS_DEFAULT_PROVIDER: ${ATLASOPS_DEFAULT_PROVIDER:-}
+      ATLASOPS_DEFAULT_MODEL: ${ATLASOPS_DEFAULT_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1}
     ports:
       - "127.0.0.1:8787:8787"
     volumes:
