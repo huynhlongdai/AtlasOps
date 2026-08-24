@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { AuditEvent } from "./types.js";
@@ -9,5 +9,15 @@ export class AuditLogger {
   async write(event: AuditEvent): Promise<void> {
     await mkdir(path.dirname(this.filename), { recursive: true });
     await appendFile(this.filename, `${JSON.stringify(event)}\n`, { encoding: "utf8", mode: 0o600 });
+  }
+  async list(limit = 200): Promise<AuditEvent[]> {
+    const bounded = Math.max(1, Math.min(limit, 2000));
+    try {
+      const source = await readFile(this.filename, "utf8");
+      return source.split(/\r?\n/).filter(Boolean).slice(-bounded).reverse().map((line) => JSON.parse(line) as AuditEvent);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
   }
 }

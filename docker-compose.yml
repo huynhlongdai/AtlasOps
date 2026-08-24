@@ -8,11 +8,20 @@ services:
       ATLASOPS_APPROVALS_FILE: /app/data/approvals.json
       ATLASOPS_DEPLOYMENTS_FILE: /app/data/deployments.json
       ATLASOPS_AGENT_SESSIONS_FILE: /app/data/agent-sessions.json
+      ATLASOPS_USERS_FILE: /app/data/users.json
+      ATLASOPS_CONTROL_SETTINGS_FILE: /app/data/control-settings.json
+      ATLASOPS_CREDENTIALS_FILE: /app/data/credentials.enc.json
       ATLASOPS_HOST: 0.0.0.0
       ATLASOPS_PORT: 8787
       ATLASOPS_ALLOWED_HOSTS: ${ATLASOPS_ALLOWED_HOSTS}
       ATLASOPS_ALLOWED_ORIGINS: ${ATLASOPS_ALLOWED_ORIGINS:-}
       ATLASOPS_BEARER_TOKEN: ${ATLASOPS_BEARER_TOKEN}
+      ATLASOPS_COOKIE_SECURE: ${ATLASOPS_COOKIE_SECURE:-true}
+      ATLASOPS_BOOTSTRAP_ADMIN_USER: ${ATLASOPS_BOOTSTRAP_ADMIN_USER:-admin}
+      ATLASOPS_BOOTSTRAP_ADMIN_PASSWORD: ${ATLASOPS_BOOTSTRAP_ADMIN_PASSWORD}
+      ATLASOPS_MASTER_KEY: ${ATLASOPS_MASTER_KEY:-}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
       ATLASOPS_DEFAULT_PROVIDER: ${ATLASOPS_DEFAULT_PROVIDER:-}
       ATLASOPS_DEFAULT_MODEL: ${ATLASOPS_DEFAULT_MODEL:-}
       ATLASOPS_MODEL_PRICES_JSON: ${ATLASOPS_MODEL_PRICES_JSON:-}
@@ -28,3 +37,9 @@ services:
       - ./config/servers.yaml:/app/config/servers.yaml:ro
       - ./secrets:/run/secrets:ro
       - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
