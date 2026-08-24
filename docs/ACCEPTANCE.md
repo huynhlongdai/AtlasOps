@@ -9,7 +9,54 @@ The exact release commit must pass:
 - dependency installation
 - strict TypeScript build
 - complete automated test suite
+- acceptance harness syntax validation
 - production Docker image build
+
+## Executable acceptance harness
+
+AtlasOps ships `scripts/acceptance.mjs` and exposes it as:
+
+```bash
+npm run acceptance
+```
+
+The harness never accepts or reads a raw SSH private key directly. It tests the already-running AtlasOps gateway and therefore uses the same configured secret boundary as the product.
+
+### Gateway-only mode
+
+After starting AtlasOps:
+
+```bash
+export ATLASOPS_ACCEPTANCE_URL=http://127.0.0.1:8787
+export ATLASOPS_ACCEPTANCE_ADMIN_USER=admin
+export ATLASOPS_ACCEPTANCE_ADMIN_PASSWORD='your-bootstrap-or-current-admin-password'
+export ATLASOPS_ACCEPTANCE_MODE=gateway-only
+npm run acceptance
+```
+
+This checks health, Control Center login/session, CSRF rejection, dashboard, Doctor, credential metadata exposure and clean logout.
+
+### Full staging mode
+
+After a staging VPS is configured in `servers.yaml`:
+
+```bash
+export ATLASOPS_ACCEPTANCE_URL=https://ops-staging.example.com
+export ATLASOPS_ACCEPTANCE_ADMIN_USER=admin
+export ATLASOPS_ACCEPTANCE_ADMIN_PASSWORD='your-admin-password'
+export ATLASOPS_ACCEPTANCE_MODE=full
+export ATLASOPS_ACCEPTANCE_SERVER_ID=staging
+
+# Optional provider acceptance
+export ATLASOPS_ACCEPTANCE_PROVIDER=openai
+export ATLASOPS_ACCEPTANCE_MODEL='your-model-id'
+
+npm run acceptance
+```
+
+Full mode additionally verifies live staging server health and, when provider/model are set, requires a first-party provider request to make at least one AtlasOps tool call.
+
+The remaining destructive/controlled-action and rollback scenarios below are intentionally kept as explicit operator-controlled tests rather than being automatically triggered by the harness.
 
 ## Gateway smoke test
 
@@ -23,6 +70,7 @@ On a clean host:
 6. Confirm `/healthz` returns `ok: true`.
 7. Sign in to the Control Center.
 8. Run Doctor and confirm there are no unexpected failures.
+9. Run `npm run acceptance` in `gateway-only` mode.
 
 ## Authentication / RBAC
 
@@ -48,6 +96,7 @@ Use a disposable/staging VPS, not a production server.
 
 - create a dedicated non-root AtlasOps SSH account
 - verify the SSH host fingerprint through a trusted channel and pin it in config
+- run the acceptance harness in `full` mode
 - confirm `list_servers` does not expose credentials
 - confirm `server_info`, `docker_ps`, `docker_logs`, `service_status`, `read_file`, and `git_status` work only within configured boundaries
 - confirm a path traversal/symlink escape outside configured roots is denied
@@ -84,6 +133,8 @@ For each configured provider (OpenAI, Anthropic, Gemini):
 - confirm session continuation works
 - confirm usage metadata is persisted
 - if model pricing is configured, confirm estimated cost metadata is produced
+
+The acceptance harness can automate the first provider/tool-call check when `ATLASOPS_ACCEPTANCE_PROVIDER` and `ATLASOPS_ACCEPTANCE_MODEL` are set. Session continuation, usage persistence and optional cost metadata should still be reviewed in the Control Center/data store before GA.
 
 ## GA decision
 
