@@ -16,3 +16,5 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npm test
+      - name: Build production Docker image
+        run: docker build --pull -t atlasops:ci .
