@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.1
+
+Control Center release candidate: browser dashboard, separate web authentication, scrypt password hashes, viewer/operator/admin RBAC, CSRF-protected HttpOnly sessions, server health and doctor checks, agent workspace, approval inbox, audit and deployment views, user/team administration, provider/model settings, AES-256-GCM local credential vault, HashiCorp Vault references, Docker production packaging and upgrade guidance.
+
+The first-party agent remains diagnostic/read-only; controlled writes and deployments continue through the approval-gated control plane. Arbitrary model-facing shell remains unavailable.
+
 ## 0.4.0-alpha.1
 
 First-party multi-provider agent release: OpenAI Responses, Anthropic Messages and Gemini Interactions adapters; provider-neutral tool calls; persistent sessions; authenticated agent REST + SSE lifecycle endpoints; read-only diagnostic agent tools; provider usage tracking and optional operator-configured cost estimates. MCP, approval and deployment control planes remain available and provider API keys stay on the AtlasOps gateway.
