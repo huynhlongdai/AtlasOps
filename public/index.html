@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>AtlasOps Control Center</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="login" class="login-wrap hidden">
+    <form id="login-form" class="login-card">
+      <div class="brand-mark">A</div>
+      <h1>AtlasOps</h1>
+      <p>AI-native infrastructure control plane</p>
+      <label>Username<input id="login-user" autocomplete="username" required /></label>
+      <label>Password<input id="login-pass" type="password" autocomplete="current-password" required /></label>
+      <button type="submit" class="primary">Sign in</button>
+      <div id="login-error" class="error"></div>
+    </form>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark small">A</span><div><strong>AtlasOps</strong><small>Control Center</small></div></div>
+      <nav id="nav">
+        <button data-page="overview" class="active">Overview</button>
+        <button data-page="servers">Servers</button>
+        <button data-page="agent">Agent</button>
+        <button data-page="approvals">Approvals <span id="approval-badge" class="badge hidden">0</span></button>
+        <button data-page="deployments">Deployments</button>
+        <button data-page="audit">Audit</button>
+        <button data-page="settings">Settings</button>
+      </nav>
+      <div class="sidebar-foot"><div id="user-chip"></div><button id="logout" class="ghost">Sign out</button></div>
+    </aside>
+    <main>
+      <header><div><h2 id="page-title">Overview</h2><p id="page-subtitle">Infrastructure at a glance</p></div><div class="status-pill"><i></i> Gateway online</div></header>
+      <section id="content"></section>
+    </main>
+  </div>
+
+  <template id="loading"><div class="loading"><span></span><span></span><span></span></div></template>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
