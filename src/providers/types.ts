@@ -22,6 +22,7 @@ export interface ProviderUsage {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
+  estimatedCostUsd?: number;
   raw?: Record<string, unknown>;
 }
 
