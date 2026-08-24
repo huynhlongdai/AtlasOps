@@ -6,6 +6,7 @@ services:
       ATLASOPS_CONFIG: /app/config/servers.yaml
       ATLASOPS_AUDIT_FILE: /app/data/audit.jsonl
       ATLASOPS_APPROVALS_FILE: /app/data/approvals.json
+      ATLASOPS_DEPLOYMENTS_FILE: /app/data/deployments.json
       ATLASOPS_HOST: 0.0.0.0
       ATLASOPS_PORT: 8787
       ATLASOPS_ALLOWED_HOSTS: ${ATLASOPS_ALLOWED_HOSTS}
