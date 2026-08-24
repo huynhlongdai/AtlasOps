@@ -15,3 +15,14 @@ servers:
       - /opt/apps
       - /var/log
       - /etc/nginx
+    # Write roots are intentionally separate and empty unless explicitly set.
+    allowedWritePaths:
+      - /opt/apps/demo
+    # Omitted tools default to approval_required. Use allow only for low-risk
+    # semantic actions in environments where unattended execution is acceptable.
+    writePolicy:
+      restart_container: approval_required
+      restart_service: approval_required
+      write_file: approval_required
+      compose_pull: approval_required
+      compose_up: approval_required
