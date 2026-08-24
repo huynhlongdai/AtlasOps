@@ -1,6 +1,6 @@
 {
   "name": "atlasops",
-  "version": "0.2.0-alpha.1",
+  "version": "0.3.0-alpha.1",
   "description": "Provider-neutral AI infrastructure operations gateway over MCP",
   "type": "module",
   "private": false,
