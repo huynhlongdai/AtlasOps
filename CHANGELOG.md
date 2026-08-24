@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0-alpha.1
+
+First-party multi-provider agent release: OpenAI Responses, Anthropic Messages and Gemini Interactions adapters; provider-neutral tool calls; persistent sessions; authenticated agent REST + SSE lifecycle endpoints; read-only diagnostic agent tools; provider usage tracking and optional operator-configured cost estimates. MCP, approval and deployment control planes remain available and provider API keys stay on the AtlasOps gateway.
+
 ## 0.3.0-alpha.1
 
 Deployment engine release: deployment preflight, persistent history, clean-repo rollback guard, git fast-forward-only updates, Docker Compose deployment, service verification, optional loopback health checks, automatic rollback on failed verification, and approval-gated manual rollback.
