@@ -1,0 +1,18 @@
+services:
+  atlasops:
+    build: .
+    restart: unless-stopped
+    environment:
+      ATLASOPS_CONFIG: /app/config/servers.yaml
+      ATLASOPS_AUDIT_FILE: /app/data/audit.jsonl
+      ATLASOPS_HOST: 0.0.0.0
+      ATLASOPS_PORT: 8787
+      ATLASOPS_ALLOWED_HOSTS: ${ATLASOPS_ALLOWED_HOSTS}
+      ATLASOPS_ALLOWED_ORIGINS: ${ATLASOPS_ALLOWED_ORIGINS:-}
+      ATLASOPS_BEARER_TOKEN: ${ATLASOPS_BEARER_TOKEN}
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - ./config/servers.yaml:/app/config/servers.yaml:ro
+      - ./secrets:/run/secrets:ro
+      - ./data:/app/data
