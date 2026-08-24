@@ -2,9 +2,9 @@
 
 **Connect infrastructure once. Operate it safely from the AI client you already use.**
 
-AtlasOps is a provider-neutral MCP gateway for infrastructure operations. It lets ChatGPT/OpenAI clients, Claude, Gemini, Codex, Cursor and other MCP-capable hosts inspect and safely operate the same servers without giving the model your private SSH key.
+AtlasOps is a provider-neutral MCP gateway for infrastructure operations. It lets ChatGPT/OpenAI clients, Claude, Gemini, Codex, Cursor and other MCP-capable hosts inspect, operate and deploy to the same servers without giving the model your private SSH key.
 
-> `v0.2.0-alpha.1` adds controlled write actions behind per-server policy and one-time operator approvals. Arbitrary model-facing shell execution remains intentionally unavailable.
+> `v0.3.0-alpha.1` adds a guarded Docker Compose deployment engine with preflight, history, verification and rollback. Arbitrary model-facing shell execution remains intentionally unavailable.
 
 ## Features
 
@@ -15,12 +15,16 @@ AtlasOps is a provider-neutral MCP gateway for infrastructure operations. It let
 - Bearer authentication for remote MCP
 - Read tools: `list_servers`, `server_info`, `docker_ps`, `docker_logs`, `service_status`, `read_file`, `git_status`
 - Controlled write tools: `restart_container`, `restart_service`, `write_file`, `compose_pull`, `compose_up`
+- Deployment tools: `deployment_preflight`, `deploy_compose`, `rollback_deployment`, `list_deployments`
 - Separate read/write path allowlists
 - Per-server/per-tool write policy: `allow`, `approval_required`, `deny`
 - Persistent one-time approvals bound to an exact action hash
 - Local operator CLI for approve/reject; the AI cannot approve its own action
 - Safe file replacement with pre-write backup and post-write SHA-256 verification
-- Post-action verification for Docker/systemd/Compose operations
+- Deployment preflight requires a clean git tree and valid Compose configuration
+- `git pull --ff-only`, Compose up, service verification and optional loopback health checks
+- Automatic rollback to recorded pre-deploy git HEAD when deployment verification fails
+- Persistent deployment history and manual approval-gated rollback
 - JSONL audit events including approval ids for controlled writes
 - Docker packaging and CI tests
 - No model-facing arbitrary shell tool
@@ -47,9 +51,7 @@ Remote endpoint: `/mcp` with `Authorization: Bearer <ATLASOPS_BEARER_TOKEN>`.
 
 ## Approval flow
 
-When a write tool is approval-gated, the first call returns `APPROVAL_REQUIRED` with an `approvalId`.
-
-Local installation:
+When a write/deploy tool is approval-gated, the first call returns `APPROVAL_REQUIRED` with an `approvalId`.
 
 ```bash
 npm run operator -- list pending
