@@ -15,10 +15,17 @@ test("Control Center bootstraps admin and enforces role hierarchy", async () => 
     const admin = await store.authenticate("rootadmin", "a-strong-bootstrap-password");
     assert.equal(admin?.role, "admin");
     assert.equal(await store.authenticate("rootadmin", "wrong-password"), undefined);
+    await assert.rejects(() => store.setDisabled(admin!.id, true), /final active admin/i);
+
     await store.createTeam("ops"); const operator = await store.createUser("operator1", "another-strong-password", "operator", "ops");
     assert.equal(operator.team, "ops");
     assert.equal(roleAllows("operator", "viewer"), true); assert.equal(roleAllows("viewer", "operator"), false); assert.equal(roleAllows("admin", "operator"), true);
-    const sessions = new WebSessionManager(1000); const session = sessions.create(operator); assert.equal(sessions.get(session.token)?.user.username, "operator1"); sessions.delete(session.token); assert.equal(sessions.get(session.token), undefined);
+
+    const sessions = new WebSessionManager(1000); const session = sessions.create(operator); assert.equal(sessions.get(session.token)?.user.username, "operator1");
+    assert.equal((await store.getActiveUser(operator.id))?.username, "operator1");
+    await store.setDisabled(operator.id, true);
+    assert.equal(await store.getActiveUser(operator.id), undefined);
+    sessions.delete(session.token); assert.equal(sessions.get(session.token), undefined);
   } finally {
     if (oldUser === undefined) delete process.env.ATLASOPS_BOOTSTRAP_ADMIN_USER; else process.env.ATLASOPS_BOOTSTRAP_ADMIN_USER = oldUser;
     if (oldPassword === undefined) delete process.env.ATLASOPS_BOOTSTRAP_ADMIN_PASSWORD; else process.env.ATLASOPS_BOOTSTRAP_ADMIN_PASSWORD = oldPassword;
